@@ -188,8 +188,6 @@ def minimize_dfa(state_machine: StateMachine, start_state: str) -> tuple[StateMa
     return minimized_state_machine, new_start_state
 
 
-
-
 # Сохранение конечного автомата в файл CSV
 def save_state_machine(state_machine: StateMachine, file_name: str) -> None:
     """
