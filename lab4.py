@@ -213,7 +213,7 @@ def main():
     state_machine, start_state, final_state = read_state_machine(sys.argv[1])
     determined_state_machine = determine_state_machine(state_machine, start_state, final_state)
     minimized_state_machine, minimized_start_state = minimize_dfa(determined_state_machine, f"{STATE_PREFIX}{START_STATE_INDEX}")
-    save_state_machine(minimized_state_machine, sys.argv[2])
+    save_state_machine(determined_state_machine, sys.argv[2])
 
 
 # Точка входа
