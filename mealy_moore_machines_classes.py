@@ -167,7 +167,6 @@ class mealey_machine:
             if state in reachable_states and next_state in reachable_states
         }
         reachable_states = list(reachable_states)
-
         # Шаг 2: Инициализация таблицы эквивалентности
         equivalence_table = {}
         for i, state1 in enumerate(reachable_states):
