@@ -85,7 +85,7 @@ def build_state_graph(grammar, grammar_type):
                     else:
                         transitions["q0"][transition[0]] = state_mapping[key]
     elif grammar_type == 'right':
-        state_mapping['F'] = str(len(grammar))
+        state_mapping['F'] = "q" + str(len(grammar))
         i=0
         for key in grammar:
             state_mapping[key] = 'q' + str(i)
@@ -102,9 +102,13 @@ def build_state_graph(grammar, grammar_type):
                     else:
                         transitions[state_mapping[key]][transition[0]] =  state_mapping[transition[1][1:-1]]
                 else:
-                    transitions[state_mapping[key]][transition[0]] = "q" + str(len(grammar))
+                    if transition[0] in transitions[state_mapping[key]]:
+                        transitions[state_mapping[key]][transition[0]] += "," "q" + str(len(grammar))
+                    else:
+                        transitions[state_mapping[key]][transition[0]] = "q" + str(len(grammar))
 
-
+    print(grammar)
+    print(state_mapping)
     print(transitions)
     return state_mapping, transitions, final_states
 
