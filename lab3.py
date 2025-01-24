@@ -96,7 +96,7 @@ def build_state_graph(grammar, grammar_type):
                         transitions[state_mapping[transition[0][1:-1]]][transition[1]] = state_mapping[key]
                 else:
                     if transition[0] in transitions["q0"]:
-                        transitions["q0"][transition[0]] += state_mapping[key]
+                        transitions["q0"][transition[0]] += "," + state_mapping[key]
                     else:
                         transitions["q0"][transition[0]] = state_mapping[key]
     elif grammar_type == 'right':
