@@ -35,6 +35,8 @@ def read_and_parse_grammar(file_path):
                     grammar_type = 'right'
                     break
             
+        if grammar_type == None:
+            grammar_type = 'right'
 
         current_line = ""
         for line in lines:
@@ -53,9 +55,6 @@ def read_and_parse_grammar(file_path):
 
             elif grammar_type == 'right':
                 head, productions = right_match.groups()
-
-            else:
-                raise ValueError(f"Invalid grammar rule: {current_line}")
 
             # Split productions and add them to the grammar dictionary
             production_list = [prod.strip() for prod in productions.split('|')]
