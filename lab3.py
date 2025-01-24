@@ -12,8 +12,6 @@ def read_and_parse_grammar(file_path):
         left_regex = re.compile(r"^\s*<(\w+)>\s*->\s*((?:<\w+>\s+)?[\wε](?:\s*\|\s*(?:<\w+>\s+)?[\wε])*)\s*$")
         right_regex = re.compile(r"^\s*<(\w+)>\s*->\s*([\wε](?:\s+<\w+>)?(?:\s*\|\s*[\wε](?:\s+<\w+>)?)*)\s*$")
         
-
-
         current_line = ""
         for line in lines:
             line = line.strip()
@@ -27,10 +25,28 @@ def read_and_parse_grammar(file_path):
             right_match = right_regex.match(current_line)
 
             if grammar_type == None:
+                if left_match and right_match:
+                    current_line = ""
+                    continue
                 if left_match:
                     grammar_type = 'left'
+                    break
                 elif right_match:
                     grammar_type = 'right'
+                    break
+            
+
+        current_line = ""
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            current_line += " " + line
+            if line[-1] == "|":
+                continue
+
+            left_match = left_regex.match(current_line)
+            right_match = right_regex.match(current_line)
 
             if grammar_type == 'left':
                 head, productions = left_match.groups()
@@ -107,9 +123,6 @@ def build_state_graph(grammar, grammar_type):
                     else:
                         transitions[state_mapping[key]][transition[0]] = "q" + str(len(grammar))
 
-    print(grammar)
-    print(state_mapping)
-    print(transitions)
     return state_mapping, transitions, final_states
 
 
