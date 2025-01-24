@@ -232,7 +232,7 @@ class mealey_machine:
 
 
 class moore_machine:
-    def __init__(self, states, inputs, transitions, output_mapping):
+    def __init__(self, states, inputs, transitions, output_mapping, start_state):
         """
         Инициализация автомата Мура.
 
@@ -246,6 +246,7 @@ class moore_machine:
         self.inputs = inputs
         self.transitions = transitions
         self.output_mapping = output_mapping
+        self.start_state = start_state
     
     def from_file(file_path: str):
         with open(file_path, 'r') as file:
@@ -259,7 +260,7 @@ class moore_machine:
 
         # Вторая строка - состояния
         states = parsed_lines[1][1:]
-
+        start_state = states[0]
         # Остальные строки - входы и переходы
         inputs = [line[0] for line in parsed_lines[2:]]
         transitions_data = [line[1:] for line in parsed_lines[2:]]
@@ -272,7 +273,7 @@ class moore_machine:
 
         # Составляем выходные значения для каждого состояния
         output_mapping = {state: output_mapping_values[i] for i, state in enumerate(states)}
-        return moore_machine(states, inputs, transitions, output_mapping)
+        return moore_machine(states, inputs, transitions, output_mapping, start_state)
     
     def moore_to_mealey(moore_machine):
         # Извлекаем состояния, входы, переходы и отображение выходов из moore_machine
@@ -339,10 +340,28 @@ class moore_machine:
       return table_str
     
     def minimize(self):
-        # Шаг 1: Классификация состояний по выходным символам
+        # Шаг 1: Нахождение достижимых состояний
+        reachable_states = set()
+        queue = [self.start_state]
+
+        while queue:
+            state = queue.pop(0)
+            if state not in reachable_states:
+                reachable_states.add(state)
+                for input_symbol in self.inputs:
+                    next_state = self.transitions.get((state, input_symbol))
+                    if next_state and next_state not in reachable_states:
+                        queue.append(next_state)
+
+        # Удаляем недостижимые состояния
+        reachable_states = list(reachable_states)
+        transitions = {key: value for key, value in self.transitions.items() if key[0] in reachable_states}
+        output_mapping = {state: self.output_mapping[state] for state in reachable_states}
+
+        # Шаг 2: Классификация состояний по выходным символам
         groups = {}
-        for state in self.states:
-            output = self.output_mapping[state]
+        for state in reachable_states:
+            output = output_mapping[state]
             if output not in groups:
                 groups[output] = []
             groups[output].append(state)
@@ -350,15 +369,15 @@ class moore_machine:
         # Превращаем группы в список списков
         partition = list(groups.values())
 
-        # Шаг 2: Построение таблицы переходов
+        # Шаг 3: Построение таблицы переходов
         def get_transition_class(state, input_symbol, current_partition):
-            next_state = self.transitions[(state, input_symbol)]
+            next_state = transitions.get((state, input_symbol))
             for group in current_partition:
                 if next_state in group:
                     return current_partition.index(group)
             return -1
 
-        # Шаг 3-4: Итеративное разбиение групп
+        # Шаг 4: Итеративное разбиение групп
         stable = False
         while not stable:
             new_partition = []
@@ -371,31 +390,36 @@ class moore_machine:
                         subgroups[transition_signature] = []
                     subgroups[transition_signature].append(state)
 
-                # Добавляем все полученные подгруппы
+                # Добавляем все подгруппы
                 new_partition.extend(subgroups.values())
 
-            # Проверяем, изменилась ли структура групп
+            # Проверяем, изменилось ли разбиение
             if new_partition == partition:
                 stable = True
             else:
                 partition = new_partition
 
         # Шаг 5: Построение минимизированного автомата
-        minimized_states = ['s' + str(i) for i in range(len(partition))]
+        minimized_states = ['S' + str(i) for i in range(len(partition))]
         minimized_transitions = {}
         minimized_output_mapping = {}
+        minimized_start_state = None
 
         for i, group in enumerate(partition):
             representative_state = group[0]
-            minimized_output_mapping[minimized_states[i]] = self.output_mapping[representative_state]
+            minimized_output_mapping[minimized_states[i]] = output_mapping[representative_state]
+
+            # Устанавливаем начальное состояние
+            if self.start_state in group:
+                minimized_start_state = minimized_states[i]
 
             # Заполняем переходы для нового состояния
             for input_symbol in self.inputs:
-                next_state = self.transitions[(representative_state, input_symbol)]
+                next_state = transitions.get((representative_state, input_symbol))
                 for j, group in enumerate(partition):
                     if next_state in group:
                         minimized_transitions[(minimized_states[i], input_symbol)] = minimized_states[j]
                         break
 
         # Возвращаем минимизированные атрибуты
-        return moore_machine(minimized_states, self.inputs, minimized_transitions, minimized_output_mapping)
+        return moore_machine(minimized_states, self.inputs, minimized_transitions, minimized_output_mapping, minimized_start_state)

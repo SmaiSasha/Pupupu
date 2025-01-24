@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
         table = min_mealey.return_as_table()
     elif macnine_type == "moore":
-        moore = mealey_machine.from_file(input_file)
+        moore = moore_machine.from_file(input_file)
         min_moore = moore.minimize()
         table = min_moore.return_as_table()
 
