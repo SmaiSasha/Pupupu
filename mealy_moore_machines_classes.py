@@ -26,7 +26,7 @@ PYVIS_OPTIONS = """
         }
         """
 class mealey_machine:
-    def __init__(self, states, inputs, transitions):
+    def __init__(self, states, inputs, transitions, start_state):
         """
         Инициализация автомата Мили.
 
@@ -38,6 +38,7 @@ class mealey_machine:
         self.states = states
         self.inputs = inputs
         self.transitions = transitions
+        self.start_state = start_state
 
     def from_file(file_path: str):
         """
@@ -53,7 +54,7 @@ class mealey_machine:
 
         # Первая строка - это состояния (s0, s1, s2, ...)
         states = parsed_lines[0][1:]  # Пропускаем первый пустой элемент (так как перед ';' ничего нет)
-
+        start_state = states[0]
         # Входные значения - это первый столбец (x1, x2, x3, ...)
         inputs = [line[0] for line in parsed_lines[1:]]
 
@@ -68,7 +69,7 @@ class mealey_machine:
                 
                 # Заполняем переходы и выходы для автомата Мили
                 transitions[(state, input_symbol)] = (next_state, output)
-        return mealey_machine(states, inputs, transitions)
+        return mealey_machine(states, inputs, transitions, start_state)
     
     def mealey_to_moore(mealy_machine):
         moore_states_unnum = []
@@ -146,31 +147,52 @@ class mealey_machine:
       return table_str
     
     def minimize(self):
-        # Шаг 1: Инициализация таблицы эквивалентности
+        # Шаг 1: Нахождение достижимых состояний
+        reachable_states = set()
+        queue = [self.start_state]
+        while queue:
+            current_state = queue.pop(0)
+            if current_state not in reachable_states:
+                reachable_states.add(current_state)
+                # Добавляем в очередь все состояния, в которые можно перейти из текущего
+                for input_symbol in self.inputs:
+                    next_state = self.transitions[(current_state, input_symbol)][0]
+                    if next_state not in reachable_states:
+                        queue.append(next_state)
+
+        # Убираем недостижимые состояния из списка состояний и переходов
+        reachable_transitions = {
+            (state, input_symbol): (next_state, output_symbol)
+            for (state, input_symbol), (next_state, output_symbol) in self.transitions.items()
+            if state in reachable_states and next_state in reachable_states
+        }
+        reachable_states = list(reachable_states)
+
+        # Шаг 2: Инициализация таблицы эквивалентности
         equivalence_table = {}
-        for i, state1 in enumerate(self.states):
-            for j, state2 in enumerate(self.states):
+        for i, state1 in enumerate(reachable_states):
+            for j, state2 in enumerate(reachable_states):
                 if i < j:
                     equivalence_table[(state1, state2)] = None  # Изначально состояния считаются эквивалентными
 
-        # Шаг 2: Проверка эквивалентности на основе выходных символов
+        # Шаг 3: Проверка эквивалентности на основе выходных символов
         for (state1, state2) in equivalence_table:
             for input_symbol in self.inputs:
-                output1 = self.transitions[(state1, input_symbol)][1]
-                output2 = self.transitions[(state2, input_symbol)][1]
+                output1 = reachable_transitions[(state1, input_symbol)][1]
+                output2 = reachable_transitions[(state2, input_symbol)][1]
                 if output1 != output2:
                     equivalence_table[(state1, state2)] = False  # Помечаем как неэквивалентные
                     break  # Достаточно одного различия
 
-        # Шаг 3: Итеративная проверка эквивалентности на основе переходов
+        # Шаг 4: Итеративная проверка эквивалентности на основе переходов
         changes = True
         while changes:  # Повторяем, пока происходят изменения
             changes = False
             for (state1, state2) in equivalence_table:
                 if equivalence_table[(state1, state2)] is None:  # Если состояния пока эквивалентны
                     for input_symbol in self.inputs:
-                        next_state1 = self.transitions[(state1, input_symbol)][0]
-                        next_state2 = self.transitions[(state2, input_symbol)][0]
+                        next_state1 = reachable_transitions[(state1, input_symbol)][0]
+                        next_state2 = reachable_transitions[(state2, input_symbol)][0]
 
                         # Проверяем их эквивалентность по переходам
                         if next_state1 != next_state2:
@@ -180,7 +202,7 @@ class mealey_machine:
                                     changes = True
                                     break
 
-        # Шаг 4: Группировка эквивалентных состояний
+        # Шаг 5: Группировка эквивалентных состояний
         equivalent_states = {}
         for (state1, state2), is_equivalent in equivalence_table.items():
             if is_equivalent is None:  # Эквивалентные состояния
@@ -193,21 +215,21 @@ class mealey_machine:
                     equivalent_states[state1] = equivalent_states[state2]
 
         # Для остальных состояний, которые не были затронуты (не объединены)
-        for state in self.states:
+        for state in reachable_states:
             if state not in equivalent_states:
                 equivalent_states[state] = state
 
-        # Шаг 5: Формирование новой таблицы переходов
+        # Шаг 6: Формирование новой таблицы переходов
         new_states = list(set(equivalent_states.values()))  # Получаем уникальные эквивалентные состояния
         new_transitions = {}
 
-        for (state, input_symbol), (next_state, output_symbol) in self.transitions.items():
+        for (state, input_symbol), (next_state, output_symbol) in reachable_transitions.items():
             minimized_state = equivalent_states[state]
             minimized_next_state = equivalent_states[next_state]
             new_transitions[(minimized_state, input_symbol)] = (minimized_next_state, output_symbol)
 
-        # Шаг 6: Возврат минимизированных атрибутов
-        return mealey_machine(new_states, self.inputs, new_transitions)
+        # Шаг 7: Возврат минимизированных атрибутов
+        return mealey_machine(new_states, self.inputs, new_transitions, equivalent_states[self.start_state])
 
 
 class moore_machine:
